@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tool di Parafrasi Documenti</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      line-height: 1.6;
+      margin: 0;
+      padding: 20px;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    
+    h1 {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    
+    .container {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+    
+    .form-group {
+      margin-bottom: 15px;
+    }
+    
+    label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: bold;
+    }
+    
+    input, select {
+      width: 100%;
+      padding: 8px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+    }
+    
+    button {
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      padding: 10px 15px;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    
+    button:disabled {
+      background-color: #cccccc;
+      cursor: not-allowed;
+    }
+    
+    .results {
+      display: flex;
+      gap: 20px;
+    }
+    
+    .result-box {
+      flex: 1;
+    }
+    
+    textarea {
+      width: 100%;
+      height: 300px;
+      padding: 10px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      resize: vertical;
+    }
+    
+    .download-buttons {
+      display: flex;
+      gap: 10px;
+      margin-top: 10px;
+    }
+    
+    .api-key-container {
+      margin-top: 20px;
+      padding: 15px;
+      background-color: #f9f9f9;
+      border-radius: 4px;
+    }
+    
+    .progress {
+      margin-top: 20px;
+      display: none;
+    }
+    
+    .progress-bar {
+      height: 20px;
+      background-color: #4CAF50;
+      width: 0%;
+      border-radius: 4px;
+      transition: width 0.3s;
+    }
+  </style>
+</head>
+<body>
+  <h1>Tool di Parafrasi Documenti</h1>
+  
+  <div class="container">
+    <div class="form-group">
+      <label for="fileInput">Seleziona un documento (DOCX, DOC o PDF):</label>
+      <input type="file" id="fileInput" accept=".docx,.doc,.pdf">
+    </div>
+    
+    <div class="form-group">
+      <label for="startPoint">Punto di inizio (lascia vuoto per l'inizio del documento):</label>
+      <input type="text" id="startPoint" placeholder="Es. Capitolo 1">
+    </div>
+    
+    <div class="form-group">
+      <label for="endPoint">Punto di fine (lascia vuoto per la fine del documento):</label>
+      <input type="text" id="endPoint" placeholder="Es. Conclusioni">
+    </div>
+    
+    <div class="form-group">
+      <label for="pieceLength">Lunghezza massima di ogni pezzo (caratteri):</label>
+      <input type="number" id="pieceLength" value="1000" min="100">
+    </div>
+    
+    <div class="api-key-container">
+      <div class="form-group">
+        <label for="apiKey">API Key di DeepSeek:</label>
+        <input type="password" id="apiKey" placeholder="Inserisci la tua API key">
+      </div>
+    </div>
+    
+    <button id="processButton">Elabora Documento</button>
+    
+    <div class="progress" id="progressContainer">
+      <div class="progress-bar" id="progressBar"></div>
+      <div id="progressText">Elaborazione: 0%</div>
+    </div>
+    
+    <div class="results">
+      <div class="result-box">
+        <label for="result">Testo Parafrasato:</label>
+        <textarea id="result" readonly></textarea>
+        <div class="download-buttons">
+          <button id="downloadText" disabled>Scarica Testo Parafrasato</button>
+        </div>
+      </div>
+      
+      <div class="result-box">
+        <label for="footnotes">Note a Piè di Pagina:</label>
+        <textarea id="footnotes" readonly></textarea>
+        <div class="download-buttons">
+          <button id="downloadFootnotes" disabled>Scarica Note</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.4.21/mammoth.browser.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.6.172/build/pdf.min.js"></script>
+  
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const fileInput = document.getElementById('fileInput');
+      const startPointInput = document.getElementById('startPoint');
+      const endPointInput = document.getElementById('endPoint');
+      const pieceLengthInput = document.getElementById('pieceLength');
+      const apiKeyInput = document.getElementById('apiKey');
+      const processButton = document.getElementById('processButton');
+      const resultTextarea = document.getElementById('result');
+      const footnotesTextarea = document.getElementById('footnotes');
+      const downloadTextButton = document.getElementById('downloadText');
+      const downloadFootnotesButton = document.getElementById('downloadFootnotes');
+      const progressContainer = document.getElementById('progressContainer');
+      const progressBar = document.getElementById('progressBar');
+      const progressText = document.getElementById('progressText');
+
+      const pdfjsLib = window['pdfjs-dist/build/pdf'];
+      pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.6.172/build/pdf.worker.min.js';
+
+      const documentProcessor = {
+        async processFile(file, startPoint, endPoint, pieceLength, apiKey, onProgress) {
+          this.apiKey = apiKey;
+          
+          try {
+            onProgress(5, 'Lettura del file...');
+            const content = await this.readFile(file);
+            
+            onProgress(20, 'Estrazione del contenuto...');
+            const relevantContent = this.extractRelevantContent(content, startPoint, endPoint);
+            
+            onProgress(30, 'Divisione in pezzi...');
+            const pieces = this.splitIntoPieces(relevantContent, pieceLength);
+            
+            onProgress(40, 'Elaborazione dei pezzi...');
+            return await this.processPieces(pieces, onProgress);
+          } catch (error) {
+            console.error('Errore nel processamento del file:', error);
+            throw error;
+          }
+        },
+
+        async readFile(file) {
+          const fileType = this.getFileType(file);
+          switch (fileType) {
+            case 'docx':
+              return await this.readDocxFile(file);
+            case 'doc':
+              throw new Error('I file DOC non sono ancora supportati. Converti il file in DOCX.');
+            case 'pdf':
+              return await this.readPdfFile(file);
+            default:
+              throw new Error('Formato file non supportato. Usa DOCX o PDF.');
+          }
+        },
+
+        getFileType(file) {
+          return file.name.split('.').pop().toLowerCase();
+        },
+
+        async readDocxFile(file) {
+          return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = async (event) => {
+              try {
+                const arrayBuffer = event.target.result;
+                const result = await mammoth.extractRawText({arrayBuffer});
+                
+                resolve({
+                  text: result.value,
+                  metadata: {
+                    titles: []
+                  }
+                });
+              } catch (error) {
+                reject(error);
+              }
+            };
+            reader.onerror = (error) => reject(error);
+            reader.readAsArrayBuffer(file);
+          });
+        },
+
+        async readPdfFile(file) {
+          return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = async (event) => {
+              try {
+                const arrayBuffer = event.target.result;
+                const pdf = await pdfjsLib.getDocument({data: arrayBuffer}).promise;
+                
+                let fullText = '';
+                const metadata = {
+                  titles: [],
+                  footnotes: []
+                };
+                
+                for (let i = 1; i <= pdf.numPages; i++) {
+                  const page = await pdf.getPage(i);
+                  const textContent = await page.getTextContent();
+                  
+                  let pageText = '';
+                  let lastY = null;
+                  let line = '';
+                  
+                  for (const item of textContent.items) {
+                    if (lastY !== null && lastY !== item.transform[5]) {
+                      pageText += line + '\n';
+                      line = '';
+                    }
+                    
+                    line += item.str;
+                    lastY = item.transform[5];
+                    
+                    const fontSize = item.transform[0];
+                    if (fontSize > 14 && item.str.trim().length > 0) {
+                      metadata.titles.push({
+                        text: item.str.trim(),
+                        position: fullText.length + pageText.length
+                      });
+                    }
+                  }
+                  
+                  if (line) {
+                    pageText += line + '\n';
+                  }
+                  
+                  fullText += pageText + '\n';
+                }
+                
+                resolve({
+                  text: fullText,
+                  metadata
+                });
+              } catch (error) {
+                reject(error);
+              }
+            };
+            reader.onerror = (error) => reject(error);
+            reader.readAsArrayBuffer(file);
+          });
+        },
+
+        extractRelevantContent(content, startPoint, endPoint) {
+          let text = content.text;
+          let startIndex = 0;
+          let endIndex = text.length;
+          
+          if (startPoint && startPoint.trim() !== '') {
+            const startPointIndex = text.indexOf(startPoint);
+            if (startPointIndex !== -1) {
+              startIndex = startPointIndex;
+            }
+          }
+          
+          if (endPoint && endPoint.trim() !== '') {
+            const endPointIndex = text.indexOf(endPoint, startIndex);
+            if (endPointIndex !== -1) {
+              endIndex = endPointIndex + endPoint.length;
+            }
+          }
+          
+          return {
+            text: text.substring(startIndex, endIndex),
+            metadata: content.metadata
+          };
+        },
+
+        splitIntoPieces(content, pieceLength) {
+          const pieces = [];
+          const paragraphs = content.text.split(/\r?\n/).filter(p => p.trim().length > 0);
+          
+          let currentPiece = '';
+          
+          for (const paragraph of paragraphs) {
+            if (this.isTitle(paragraph, content.metadata)) {
+              if (currentPiece.length > 0) {
+                pieces.push(currentPiece);
+                currentPiece = '';
+              }
+              
+              currentPiece = paragraph + '\n\n';
+              continue;
+            }
+            
+            const potentialPiece = currentPiece + paragraph + '\n\n';
+            
+            if (potentialPiece.length > pieceLength && currentPiece.length > 0) {
+              pieces.push(currentPiece);
+              currentPiece = paragraph + '\n\n';
+            } else {
+              currentPiece = potentialPiece;
+            }
+          }
+          
+          if (currentPiece.length > 0) {
+            pieces.push(currentPiece);
+          }
+          
+          return pieces;
+        },
+
+        isTitle(text, metadata = {}) {
+          if (metadata.titles && metadata.titles.some(title => title.text === text.trim())) {
+            return true;
+          }
+          
+          const titlePatterns = [
+            /^[0-9]+\.\s+[A-Z]/, 
+            /^[A-Z][a-z]*\s+[0-9]+\.\s+/,
+            /^[A-Z][^.!?]*$/, 
+            /^[A-Z][a-zA-Z\s]{0,30}$/  
+          ];
+          
+          if (titlePatterns.some(pattern => pattern.test(text.trim()))) {
+            return true;
+          }
+          
+          if (text.trim().length < 50 && !text.includes('.') && text.trim().length > 0) {
+            return true;
+          }
+          
+          return false;
+        },
+
+        async processPieces(pieces, onProgress) {
+          const processedPieces = [];
+          const footnotes = [];
+          
+          for (let i = 0; i < pieces.length; i++) {
+            const piece = pieces[i];
+            
+            const progress = 40 + Math.floor((i / pieces.length) * 50);
+            onProgress(progress, `Elaborazione pezzo ${i+1} di ${pieces.length}...`);
+            
+            const { textWithoutFootnotes, extractedFootnotes } = this.extractFootnotes(piece);
+            footnotes.push(...extractedFootnotes);
+            
+            try {
+              const paraphrasedText = await this.sendToDeepSeek(textWithoutFootnotes);
+              processedPieces.push(paraphrasedText);
+            } catch (error) {
+              console.error(`Errore nella parafrasi del pezzo ${i+1}:`, error);
+              processedPieces.push(`[ERRORE NELLA PARAFRASI: ${error.message}]\n\n${textWithoutFootnotes}`);
+            }
+          }
+          
+          onProgress(95, 'Finalizzazione...');
+          
+          return {
+            processedText: processedPieces.join('\n\n'),
+            footnotes: footnotes.join('\n\n')
+          };
+        },
+
+        extractFootnotes(text) {
+          const footnoteRefPatterns = [
+            /\[\d+\]/g, 
+            /\(\d+\)/g,
+            /(?<!\d)\d+\s*$/gm, 
+            /\s\d+\s*$/gm 
+          ];
+          
+          const footnoteContentPattern = /^\s*\d+\.\s+.+$/gm;
+          
+          let textWithoutFootnotes = text;
+          const extractedFootnotes = [];
+          
+          const footnoteContents = text.match(footnoteContentPattern);
+          if (footnoteContents) {
+            for (const content of footnoteContents) {
+              extractedFootnotes.push(content.trim());
+              textWithoutFootnotes = textWithoutFootnotes.replace(content, '');
+            }
+          }
+          
+          for (const pattern of footnoteRefPatterns) {
+            textWithoutFootnotes = textWithoutFootnotes.replace(pattern, '');
+          }
+          
+          textWithoutFootnotes = textWithoutFootnotes.replace(/\n{3,}/g, '\n\n');
+          
+          return {
+            textWithoutFootnotes,
+            extractedFootnotes
+          };
+        },
+
+        async sendToDeepSeek(text) {
+          const API_URL = 'https://api.deepseek.com/v1/chat/completions'; // URL da aggiornare
+          
+          try {
+            const response = await fetch(API_URL, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${this.apiKey}`
+              },
+              body: JSON.stringify({
+                model: 'deepseek-chat',
+                messages: [
+                  {
+                    role: 'system',
+                    content: 'Sei un assistente che parafrasa testi eliminando il plagio.'
+                  },
+                  {
+                    role: 'user',
+                    content: `parafrasa questo pezzo di testo eliminando il plagio, senza riportarmi gli indici delle note trovate nel testo:\n\n${text}`
+                  }
+                ]
+              })
+            });
+            
+            if (!response.ok) {
+              const errorData = await response.json();
+              throw new Error(`Errore API DeepSeek: ${errorData.error?.message || response.statusText}`);
+            }
+            
+            const data = await response.json();
+            return data.choices[0].message.content;
+          } catch (error) {
+            console.error('Errore durante la chiamata a DeepSeek:', error);
+            throw new Error('Errore durante la parafrasi: ' + error.message);
+          }
+        }
+      };
+
+      processButton.addEventListener('click', async () => {
+        const file = fileInput.files[0];
+        if (!file) {
+          alert('Seleziona un file');
+          return;
+        }
+        
+        const apiKey = apiKeyInput.value.trim();
+        if (!apiKey) {
+          alert('Inserisci la tua API key di DeepSeek');
+          return;
+        }
+        
+        const startPoint = startPointInput.value;
+        const endPoint = endPointInput.value;
+        const pieceLength = parseInt(pieceLengthInput.value);
+        
+        resultTextarea.value = '';
+        footnotesTextarea.value = '';
+        downloadTextButton.disabled = true;
+        downloadFootnotesButton.disabled = true;
+        
+        progressContainer.style.display = 'block';
+        progressBar.style.width = '0%';
+        progressText.textContent = 'Inizializzazione...';
+        
+        processButton.disabled = true;
+        
+        try {
+          const result = await documentProcessor.processFile(
+            file, 
+            startPoint, 
+            endPoint, 
+            pieceLength, 
+            apiKey,
+            (percentage, message) => {
+              progressBar.style.width = `${percentage}%`;
+              progressText.textContent = message;
+            }
+          );
+          
+          resultTextarea.value = result.processedText;
+          footnotesTextarea.value = result.footnotes;
+          
+          downloadTextButton.disabled = false;
+          downloadFootnotesButton.disabled = false;
+          
+          progressBar.style.width = '100%';
+          progressText.textContent = 'Elaborazione completata!';
+        } catch (error) {
+          alert('Errore durante l\'elaborazione: ' + error.message);
+          progressText.textContent = 'Errore: ' + error.message;
+        } finally {
+          processButton.disabled = false;
+        }
+      });
+      
+      downloadTextButton.addEventListener('click', () => {
+        downloadFile('testo_parafrasato.txt', resultTextarea.value);
+      });
+      
+      downloadFootnotesButton.addEventListener('click', () => {
+        downloadFile('note.txt', footnotesTextarea.value);
+      });
+      
+      function downloadFile(filename, text) {
+        const element = document.createElement('a');
+        element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(text));
+        element.setAttribute('download', filename);
+        element.style.display = 'none';
+        document.body.appendChild(element);
+        element.click();
+        document.body.removeChild(element);
+      }
+    });
+  </script>
+</body>
+</html>

@@ -1,6 +1,7 @@
 # Paraphrasing Automation Project
 
 ## Overview
+### This project is intentionally wrote in a single file (HTML + CSS + JS)
 This project aims to eliminate the repetitive task of splitting text into smaller parts for paraphrasing, This action ta. It automates the process using JavaScript, primarily relying on regular expressions for text manipulation and an API call to **Deepseek**. The API prompt is customizable directly in the code.
 
 The project follows a **one-page, vertical development** structure, keeping everything streamlined and efficient.

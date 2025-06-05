@@ -3,157 +3,442 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Tool di Parafrasi Documenti</title>
+  <title>ParaphAI - Tool di Parafrasi Documenti</title>
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      line-height: 1.6;
+    * {
       margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #f5f5f7;
+      min-height: 100vh;
       padding: 20px;
-      max-width: 1200px;
-      margin: 0 auto;
+      color: #1d1d1f;
     }
     
-    h1 {
+    .app-header {
       text-align: center;
-      margin-bottom: 20px;
+      margin-bottom: 40px;
     }
     
-    .container {
-      display: flex;
-      flex-direction: column;
+    .app-title {
+      font-size: 48px;
+      font-weight: 700;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 10px;
+    }
+    
+    .app-subtitle {
+      font-size: 18px;
+      color: #86868b;
+    }
+    
+    .bento-container {
+      max-width: 1400px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: repeat(12, 1fr);
+      grid-auto-rows: minmax(100px, auto);
       gap: 20px;
     }
     
+    .bento-card {
+      background: white;
+      border-radius: 20px;
+      padding: 30px;
+      box-shadow: 0 4px 30px rgba(0, 0, 0, 0.06);
+      transition: all 0.3s ease;
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .bento-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 40px rgba(0, 0, 0, 0.1);
+    }
+    
+    /* Griglia layout */
+    .upload-card {
+      grid-column: span 5;
+      grid-row: span 2;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+    }
+    
+    .settings-card {
+      grid-column: span 4;
+      grid-row: span 2;
+    }
+    
+    .api-card {
+      grid-column: span 3;
+      grid-row: span 2;
+      background: #1d1d1f;
+      color: white;
+    }
+    
+    .process-card {
+      grid-column: span 12;
+      grid-row: span 1;
+      background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+      color: white;
+      text-align: center;
+      padding: 20px;
+    }
+    
+    .result-card {
+      grid-column: span 6;
+      grid-row: span 4;
+    }
+    
+    .footnotes-card {
+      grid-column: span 6;
+      grid-row: span 4;
+    }
+    
+    /* Stili elementi form */
+    .card-title {
+      font-size: 24px;
+      font-weight: 600;
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    
+    .card-icon {
+      width: 30px;
+      height: 30px;
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+    }
+    
     .form-group {
-      margin-bottom: 15px;
+      margin-bottom: 20px;
     }
     
     label {
       display: block;
-      margin-bottom: 5px;
-      font-weight: bold;
+      margin-bottom: 8px;
+      font-weight: 500;
+      font-size: 14px;
+      color: inherit;
+      opacity: 0.8;
     }
     
-    input, select {
+    input[type="text"],
+    input[type="number"],
+    input[type="password"],
+    select {
       width: 100%;
-      padding: 8px;
-      border: 1px solid #ddd;
-      border-radius: 4px;
+      padding: 12px 16px;
+      border: 2px solid transparent;
+      background: rgba(0, 0, 0, 0.05);
+      border-radius: 12px;
+      font-size: 16px;
+      transition: all 0.3s ease;
+      color: inherit;
+    }
+    
+    .upload-card input,
+    .api-card input {
+      background: rgba(255, 255, 255, 0.15);
+      color: white;
+    }
+    
+    .upload-card input::placeholder,
+    .api-card input::placeholder {
+      color: rgba(255, 255, 255, 0.6);
+    }
+    
+    input:focus {
+      outline: none;
+      border-color: #667eea;
+      background: rgba(102, 126, 234, 0.05);
+    }
+    
+    .file-input-wrapper {
+      position: relative;
+      overflow: hidden;
+      display: inline-block;
+      width: 100%;
+    }
+    
+    .file-input-wrapper input[type=file] {
+      position: absolute;
+      left: -9999px;
+    }
+    
+    .file-input-label {
+      display: block;
+      padding: 20px;
+      background: rgba(255, 255, 255, 0.15);
+      border: 2px dashed rgba(255, 255, 255, 0.3);
+      border-radius: 12px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+    
+    .file-input-label:hover {
+      background: rgba(255, 255, 255, 0.25);
+      border-color: rgba(255, 255, 255, 0.5);
+    }
+    
+    .file-name {
+      margin-top: 10px;
+      font-size: 14px;
+      opacity: 0.8;
     }
     
     button {
-      background-color: #4CAF50;
-      color: white;
+      background: white;
+      color: #1d1d1f;
       border: none;
-      padding: 10px 15px;
-      border-radius: 4px;
+      padding: 14px 28px;
+      border-radius: 12px;
+      font-size: 16px;
+      font-weight: 600;
       cursor: pointer;
+      transition: all 0.3s ease;
+      width: 100%;
+    }
+    
+    button:hover:not(:disabled) {
+      transform: scale(1.02);
+      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);
     }
     
     button:disabled {
-      background-color: #cccccc;
+      opacity: 0.5;
       cursor: not-allowed;
     }
     
-    .results {
-      display: flex;
-      gap: 20px;
-    }
-    
-    .result-box {
-      flex: 1;
+    .process-button {
+      background: white;
+      color: #f5576c;
+      font-size: 18px;
+      padding: 18px 40px;
+      display: inline-block;
+      width: auto;
     }
     
     textarea {
       width: 100%;
       height: 300px;
-      padding: 10px;
-      border: 1px solid #ddd;
-      border-radius: 4px;
+      padding: 16px;
+      border: 2px solid #e5e5e7;
+      border-radius: 12px;
+      font-family: 'SF Mono', Monaco, monospace;
+      font-size: 14px;
       resize: vertical;
+      transition: all 0.3s ease;
     }
     
-    .download-buttons {
+    textarea:focus {
+      outline: none;
+      border-color: #667eea;
+    }
+    
+    .download-section {
       display: flex;
       gap: 10px;
-      margin-top: 10px;
+      margin-top: 15px;
     }
     
-    .api-key-container {
-      margin-top: 20px;
-      padding: 15px;
-      background-color: #f9f9f9;
-      border-radius: 4px;
+    .download-button {
+      flex: 1;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 12px 20px;
+      font-size: 14px;
     }
     
-    .progress {
+    /* Progress bar */
+    .progress-wrapper {
       margin-top: 20px;
-      display: none;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+    
+    .progress-wrapper.show {
+      opacity: 1;
+    }
+    
+    .progress-bar-container {
+      background: rgba(255, 255, 255, 0.3);
+      border-radius: 10px;
+      height: 8px;
+      overflow: hidden;
+      margin-bottom: 10px;
     }
     
     .progress-bar {
-      height: 20px;
-      background-color: #4CAF50;
-      width: 0%;
-      border-radius: 4px;
-      transition: width 0.3s;
+      height: 100%;
+      background: white;
+      border-radius: 10px;
+      transition: width 0.3s ease;
+    }
+    
+    .progress-text {
+      font-size: 14px;
+      opacity: 0.8;
+    }
+    
+    /* Stat badges */
+    .stat-badge {
+      display: inline-block;
+      background: rgba(102, 126, 234, 0.1);
+      color: #667eea;
+      padding: 6px 12px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 600;
+      margin-right: 8px;
+    }
+    
+    @media (max-width: 1200px) {
+      .bento-container {
+        grid-template-columns: repeat(6, 1fr);
+      }
+      
+      .upload-card,
+      .settings-card,
+      .api-card,
+      .result-card,
+      .footnotes-card {
+        grid-column: span 6;
+      }
+    }
+    
+    @media (max-width: 768px) {
+      .bento-container {
+        grid-template-columns: 1fr;
+        gap: 15px;
+      }
+      
+      .bento-card {
+        grid-column: span 1 !important;
+        padding: 20px;
+      }
+      
+      .app-title {
+        font-size: 36px;
+      }
     }
   </style>
 </head>
 <body>
-  <h1>Tool di Parafrasi Documenti</h1>
+  <div class="app-header">
+    <h1 class="app-title">ParaphAI</h1>
+    <p class="app-subtitle">Parafrasi intelligente con AI per eliminare il plagio</p>
+  </div>
   
-  <div class="container">
-    <div class="form-group">
-      <label for="fileInput">Seleziona un documento (DOCX, DOC o PDF):</label>
-      <input type="file" id="fileInput" accept=".docx,.doc,.pdf">
-    </div>
-    
-    <div class="form-group">
-      <label for="startPoint">Punto di inizio (lascia vuoto per l'inizio del documento):</label>
-      <input type="text" id="startPoint" placeholder="Es. Capitolo 1">
-    </div>
-    
-    <div class="form-group">
-      <label for="endPoint">Punto di fine (lascia vuoto per la fine del documento):</label>
-      <input type="text" id="endPoint" placeholder="Es. Conclusioni">
-    </div>
-    
-    <div class="form-group">
-      <label for="pieceLength">Lunghezza massima di ogni pezzo (caratteri):</label>
-      <input type="number" id="pieceLength" value="1000" min="100">
-    </div>
-    
-    <div class="api-key-container">
+  <div class="bento-container">
+    <!-- Upload Card -->
+    <div class="bento-card upload-card">
+      <div class="card-title">
+        <div class="card-icon">📄</div>
+        Carica Documento
+      </div>
       <div class="form-group">
-        <label for="apiKey">API Key di DeepSeek:</label>
-        <input type="password" id="apiKey" placeholder="Inserisci la tua API key">
+        <div class="file-input-wrapper">
+          <input type="file" id="fileInput" accept=".docx,.doc,.pdf">
+          <label for="fileInput" class="file-input-label">
+            <div style="font-size: 40px; margin-bottom: 10px;">📁</div>
+            <div>Trascina qui il tuo file o clicca per selezionare</div>
+            <div style="font-size: 12px; opacity: 0.7; margin-top: 5px;">DOCX, DOC o PDF</div>
+          </label>
+          <div class="file-name" id="fileName"></div>
+        </div>
       </div>
     </div>
     
-    <button id="processButton">Elabora Documento</button>
-    
-    <div class="progress" id="progressContainer">
-      <div class="progress-bar" id="progressBar"></div>
-      <div id="progressText">Elaborazione: 0%</div>
+    <!-- Settings Card -->
+    <div class="bento-card settings-card">
+      <div class="card-title">
+        <div class="card-icon" style="background: rgba(102, 126, 234, 0.1); color: #667eea;">⚙️</div>
+        Impostazioni
+      </div>
+      <div class="form-group">
+        <label for="startPoint">Punto di inizio</label>
+        <input type="text" id="startPoint" placeholder="Es. Capitolo 1">
+      </div>
+      <div class="form-group">
+        <label for="endPoint">Punto di fine</label>
+        <input type="text" id="endPoint" placeholder="Es. Conclusioni">
+      </div>
+      <div class="form-group">
+        <label for="pieceLength">Lunghezza pezzi (caratteri)</label>
+        <input type="number" id="pieceLength" value="1000" min="100">
+      </div>
     </div>
     
-    <div class="results">
-      <div class="result-box">
-        <label for="result">Testo Parafrasato:</label>
-        <textarea id="result" readonly></textarea>
-        <div class="download-buttons">
-          <button id="downloadText" disabled>Scarica Testo Parafrasato</button>
-        </div>
+    <!-- API Card -->
+    <div class="bento-card api-card">
+      <div class="card-title">
+        <div class="card-icon">🔑</div>
+        API Key
       </div>
-      
-      <div class="result-box">
-        <label for="footnotes">Note a Piè di Pagina:</label>
-        <textarea id="footnotes" readonly></textarea>
-        <div class="download-buttons">
-          <button id="downloadFootnotes" disabled>Scarica Note</button>
+      <div class="form-group">
+        <label for="apiKey">DeepSeek API Key</label>
+        <input type="password" id="apiKey" placeholder="sk-...">
+      </div>
+      <div style="font-size: 12px; opacity: 0.7; margin-top: 10px;">
+        La tua chiave API è sicura e non viene salvata
+      </div>
+    </div>
+    
+    <!-- Process Card -->
+    <div class="bento-card process-card">
+      <button id="processButton" class="process-button">
+        🚀 Elabora Documento
+      </button>
+      <div class="progress-wrapper" id="progressWrapper">
+        <div class="progress-bar-container">
+          <div class="progress-bar" id="progressBar"></div>
         </div>
+        <div class="progress-text" id="progressText">Elaborazione in corso...</div>
+      </div>
+    </div>
+    
+    <!-- Result Card -->
+    <div class="bento-card result-card">
+      <div class="card-title">
+        <div class="card-icon" style="background: rgba(102, 126, 234, 0.1); color: #667eea;">✨</div>
+        Testo Parafrasato
+      </div>
+      <div class="stat-badge" id="wordCount">0 parole</div>
+      <div class="stat-badge" id="charCount">0 caratteri</div>
+      <textarea id="result" readonly placeholder="Il testo parafrasato apparirà qui..."></textarea>
+      <div class="download-section">
+        <button id="downloadText" class="download-button" disabled>
+          📥 Scarica Testo
+        </button>
+      </div>
+    </div>
+    
+    <!-- Footnotes Card -->
+    <div class="bento-card footnotes-card">
+      <div class="card-title">
+        <div class="card-icon" style="background: rgba(245, 87, 108, 0.1); color: #f5576c;">📝</div>
+        Note a Piè di Pagina
+      </div>
+      <div class="stat-badge" id="footnotesCount">0 note</div>
+      <textarea id="footnotes" readonly placeholder="Le note estratte appariranno qui..."></textarea>
+      <div class="download-section">
+        <button id="downloadFootnotes" class="download-button" disabled>
+          📥 Scarica Note
+        </button>
       </div>
     </div>
   </div>
@@ -164,6 +449,7 @@
   <script>
     document.addEventListener('DOMContentLoaded', () => {
       const fileInput = document.getElementById('fileInput');
+      const fileName = document.getElementById('fileName');
       const startPointInput = document.getElementById('startPoint');
       const endPointInput = document.getElementById('endPoint');
       const pieceLengthInput = document.getElementById('pieceLength');
@@ -173,12 +459,41 @@
       const footnotesTextarea = document.getElementById('footnotes');
       const downloadTextButton = document.getElementById('downloadText');
       const downloadFootnotesButton = document.getElementById('downloadFootnotes');
-      const progressContainer = document.getElementById('progressContainer');
+      const progressWrapper = document.getElementById('progressWrapper');
       const progressBar = document.getElementById('progressBar');
       const progressText = document.getElementById('progressText');
+      const wordCount = document.getElementById('wordCount');
+      const charCount = document.getElementById('charCount');
+      const footnotesCount = document.getElementById('footnotesCount');
 
       const pdfjsLib = window['pdfjs-dist/build/pdf'];
       pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.6.172/build/pdf.worker.min.js';
+
+      // File input handler
+      fileInput.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (file) {
+          fileName.textContent = `📄 ${file.name}`;
+        }
+      });
+
+      // Update stats
+      resultTextarea.addEventListener('input', updateStats);
+      
+      function updateStats() {
+        const text = resultTextarea.value;
+        const words = text.trim().split(/\s+/).length;
+        const chars = text.length;
+        
+        wordCount.textContent = `${words} parole`;
+        charCount.textContent = `${chars} caratteri`;
+      }
+      
+      function updateFootnotesStats() {
+        const text = footnotesTextarea.value;
+        const notes = text.trim().split('\n\n').filter(n => n.trim()).length;
+        footnotesCount.textContent = `${notes} note`;
+      }
 
       const documentProcessor = {
         async processFile(file, startPoint, endPoint, pieceLength, apiKey, onProgress) {
@@ -449,7 +764,7 @@
         },
 
         async sendToDeepSeek(text) {
-          const API_URL = 'https://api.deepseek.com/v1/chat/completions'; // URL da aggiornare
+          const API_URL = 'https://api.deepseek.com/v1/chat/completions';
           
           try {
             const response = await fetch(API_URL, {
@@ -463,11 +778,11 @@
                 messages: [
                   {
                     role: 'system',
-                    content: 'Sei un assistente che parafrasa testi eliminando il plagio.'
+                    content: 'Sei un assistente che restituisce tesi senza plagio e che non risulta fatto da AI'
                   },
                   {
                     role: 'user',
-                    content: `parafrasa questo pezzo di testo eliminando il plagio, senza riportarmi gli indici delle note trovate nel testo:\n\n${text}`
+                    content: `senza scrivere nient'altro, raddoppia la lunghezza di questo testo, mantenendo il plagio a 0 assoluto:\n\n${text}`
                   }
                 ]
               })
@@ -509,7 +824,7 @@
         downloadTextButton.disabled = true;
         downloadFootnotesButton.disabled = true;
         
-        progressContainer.style.display = 'block';
+        progressWrapper.classList.add('show');
         progressBar.style.width = '0%';
         progressText.textContent = 'Inizializzazione...';
         
@@ -531,16 +846,22 @@
           resultTextarea.value = result.processedText;
           footnotesTextarea.value = result.footnotes;
           
+          updateStats();
+          updateFootnotesStats();
+          
           downloadTextButton.disabled = false;
           downloadFootnotesButton.disabled = false;
           
           progressBar.style.width = '100%';
-          progressText.textContent = 'Elaborazione completata!';
+          progressText.textContent = 'Elaborazione completata! ✨';
         } catch (error) {
           alert('Errore durante l\'elaborazione: ' + error.message);
-          progressText.textContent = 'Errore: ' + error.message;
+          progressText.textContent = '❌ Errore: ' + error.message;
         } finally {
           processButton.disabled = false;
+          setTimeout(() => {
+            progressWrapper.classList.remove('show');
+          }, 3000);
         }
       });
       

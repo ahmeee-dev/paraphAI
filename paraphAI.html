@@ -136,7 +136,6 @@
     }
     
     input[type="text"],
-    input[type="number"],
     input[type="password"],
     select {
       width: 100%;
@@ -306,6 +305,12 @@
       margin-right: 8px;
     }
     
+    .info-text {
+      font-size: 12px;
+      opacity: 0.7;
+      margin-top: 10px;
+    }
+    
     @media (max-width: 1200px) {
       .bento-container {
         grid-template-columns: repeat(6, 1fr);
@@ -377,9 +382,8 @@
         <label for="endPoint">Punto di fine</label>
         <input type="text" id="endPoint" placeholder="Es. Conclusioni">
       </div>
-      <div class="form-group">
-        <label for="pieceLength">Lunghezza pezzi (caratteri)</label>
-        <input type="number" id="pieceLength" value="1000" min="100">
+      <div class="info-text">
+        Il testo verrà diviso automaticamente in blocchi da 500 caratteri per l'elaborazione.
       </div>
     </div>
     
@@ -452,7 +456,6 @@
       const fileName = document.getElementById('fileName');
       const startPointInput = document.getElementById('startPoint');
       const endPointInput = document.getElementById('endPoint');
-      const pieceLengthInput = document.getElementById('pieceLength');
       const apiKeyInput = document.getElementById('apiKey');
       const processButton = document.getElementById('processButton');
       const resultTextarea = document.getElementById('result');
@@ -482,11 +485,11 @@
       
       function updateStats() {
         const text = resultTextarea.value;
-        const words = text.trim().split(/\s+/).length;
+        const words = text.trim() ? text.trim().split(/\s+/).length : 0;
         const chars = text.length;
         
-        wordCount.textContent = `${words} parole`;
-        charCount.textContent = `${chars} caratteri`;
+        wordCount.textContent = `${words.toLocaleString('it-IT')} parole`;
+        charCount.textContent = `${chars.toLocaleString('it-IT')} caratteri`;
       }
       
       function updateFootnotesStats() {
@@ -496,7 +499,7 @@
       }
 
       const documentProcessor = {
-        async processFile(file, startPoint, endPoint, pieceLength, apiKey, onProgress) {
+        async processFile(file, startPoint, endPoint, apiKey, onProgress) {
           this.apiKey = apiKey;
           
           try {
@@ -507,9 +510,9 @@
             const relevantContent = this.extractRelevantContent(content, startPoint, endPoint);
             
             onProgress(30, 'Divisione in pezzi...');
-            const pieces = this.splitIntoPieces(relevantContent, pieceLength);
+            const pieces = this.splitIntoPieces(relevantContent.text);
             
-            onProgress(40, 'Elaborazione dei pezzi...');
+            onProgress(40, `Elaborazione di ${pieces.length} pezzi...`);
             return await this.processPieces(pieces, onProgress);
           } catch (error) {
             console.error('Errore nel processamento del file:', error);
@@ -643,61 +646,15 @@
           };
         },
 
-        splitIntoPieces(content, pieceLength) {
+        splitIntoPieces(text) {
           const pieces = [];
-          const paragraphs = content.text.split(/\r?\n/).filter(p => p.trim().length > 0);
+          const chunkSize = 500;
           
-          let currentPiece = '';
-          
-          for (const paragraph of paragraphs) {
-            if (this.isTitle(paragraph, content.metadata)) {
-              if (currentPiece.length > 0) {
-                pieces.push(currentPiece);
-                currentPiece = '';
-              }
-              
-              currentPiece = paragraph + '\n\n';
-              continue;
-            }
-            
-            const potentialPiece = currentPiece + paragraph + '\n\n';
-            
-            if (potentialPiece.length > pieceLength && currentPiece.length > 0) {
-              pieces.push(currentPiece);
-              currentPiece = paragraph + '\n\n';
-            } else {
-              currentPiece = potentialPiece;
-            }
-          }
-          
-          if (currentPiece.length > 0) {
-            pieces.push(currentPiece);
+          for (let i = 0; i < text.length; i += chunkSize) {
+            pieces.push(text.substring(i, i + chunkSize));
           }
           
           return pieces;
-        },
-
-        isTitle(text, metadata = {}) {
-          if (metadata.titles && metadata.titles.some(title => title.text === text.trim())) {
-            return true;
-          }
-          
-          const titlePatterns = [
-            /^[0-9]+\.\s+[A-Z]/, 
-            /^[A-Z][a-z]*\s+[0-9]+\.\s+/,
-            /^[A-Z][^.!?]*$/, 
-            /^[A-Z][a-zA-Z\s]{0,30}$/  
-          ];
-          
-          if (titlePatterns.some(pattern => pattern.test(text.trim()))) {
-            return true;
-          }
-          
-          if (text.trim().length < 50 && !text.includes('.') && text.trim().length > 0) {
-            return true;
-          }
-          
-          return false;
         },
 
         async processPieces(pieces, onProgress) {
@@ -817,7 +774,6 @@
         
         const startPoint = startPointInput.value;
         const endPoint = endPointInput.value;
-        const pieceLength = parseInt(pieceLengthInput.value);
         
         resultTextarea.value = '';
         footnotesTextarea.value = '';
@@ -835,7 +791,6 @@
             file, 
             startPoint, 
             endPoint, 
-            pieceLength, 
             apiKey,
             (percentage, message) => {
               progressBar.style.width = `${percentage}%`;
